@@ -6,7 +6,7 @@ client.connect(err => {
 });
 // make sure Postrgres is running
 
-// get everything from users table
+//get everything from users table
 // client.query('SELECT * FROM users', (err, data) => {
 // 	if (err) console.error(err);
 // 	else data.rows.forEach(rowObj => {

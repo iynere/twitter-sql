@@ -34,6 +34,7 @@ module.exports = io => {
 		client.query('SELECT * FROM tweets, users WHERE tweets.user_id=users.id AND tweets.id=$1', [req.params.id], function(err, result) {
 					if (err) return next(err);
 					var tweetsForID = result.rows;
+					console.log(result.rows.length);
         	res.render('index', {
 						title: 'Twitter.js',
 						tweets: tweetsForID,
@@ -44,20 +45,28 @@ module.exports = io => {
 	});
 
 	// create a new tweet
-	router.post('/tweets', (req, res, next) => {
-		const newTweet = client.query('INSERT INTO tweets (user_id, content) VALUES ($1, $2)', [1, req.body.text], function(err, result) {
+router.post('/tweets', (req, res, next) => {
+	const newTweet = client.query('INSERT INTO tweets (user_id, content)VALUES ((SELECT users.id FROM tweets, users WHERE tweets.user_id = users.id AND users.name = $1), $2)', [req.body.name, req.body.text], err => {
+		if (err) return next(err);
+	}); // newTweet function which we will call regardless of whether it's a new user
+	client.query('SELECT * FROM users WHERE name = $1', [req.body.name], 
+		(err, result) => { // check to see if tweet is in users table
 			if (err) return next(err);
-			console.log('reqbodytext', req.body.text);
-			res.redirect('/');
-		});
-		// const newTweet = tweetBank.add(req.body.name, req.body.text);
-		io.sockets.emit('new_tweet', newTweet);
-	});
-
+			if (!result.rows.length) { // if not, add them, then do redirect & io socket
+				let defaultPic = 'https://nickleffler.com/wp-content/uploads/twitter-egg-150x150.jpg';
+				client.query('INSERT INTO users (name, picture_url) VALUES ($1, $2)', [req.body.name, defaultPic], err => {
+					if (err) return next(err);
+				};
+				res.redirect('/');
+				io.sockets.emit('new_tweet', newTweet);
+			});
+			} else {
+				res.redirect('/');
+				io.sockets.emit('new_tweet', newTweet);
 	// // replaced this hard-coded route with general static routing in app.js
 	// router.get('/stylesheets/style.css', => (req, res, next){
 	//   res.sendFile('/stylesheets/style.css', { root: __dirname + '/../public/' });
 	// });
 
 	return router;
-};
+});
